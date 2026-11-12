@@ -5,8 +5,15 @@
       - apache2
       - php
       - php-mysql
+      - php-gd
+      - php-xml
+      - php-mbstring
+      - php-curl
+      - php-zip
+      - php-intl
       - libapache2-mod-php
     state: present
+  notify: Reload Apache
 
 - name: Download and unpack WordPress
   ansible.builtin.unarchive:
