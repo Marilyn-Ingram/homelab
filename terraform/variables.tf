@@ -7,13 +7,13 @@ variable "prefix" {
 variable "location" {
   description = "Azure region for the lab."
   type        = string
-  default     = "eastus"
+  default     = "northcentralus"
 }
 
 variable "vm_size" {
   description = "Size of each VM. Standard_B1s is the cheapest that works for this lab."
   type        = string
-  default     = "Standard_B1s"
+  default     = "Standard_B2ats_v2"
 }
 
 variable "admin_username" {
