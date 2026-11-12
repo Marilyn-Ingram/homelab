@@ -75,17 +75,8 @@ jobs:
         run: |
           RUNNER_IP=$(curl -fsS https://api.ipify.org)
           echo "Runner IP: $RUNNER_IP"
-          az network nsg rule create \
-            --resource-group "${{ steps.tf.outputs.rg }}" \
-            --nsg-name "${{ steps.tf.outputs.nsg }}" \
-            --name gha-runner-temp \
-            --priority 150 \
-            --direction Inbound \
-            --access Allow \
-            --protocol Tcp \
-            --source-address-prefixes "$RUNNER_IP/32" \
-            --destination-port-ranges 22 \
-            --output none
+          terraform -chdir=$TF_DIR apply -auto-approve -input=false \
+            -var="ci_runner_cidr=$RUNNER_IP/32"
 
       - name: Install Python
         uses: actions/setup-python@v5
@@ -122,14 +113,10 @@ jobs:
           WP_DB_PASSWORD: ${{ secrets.WP_DB_PASSWORD }}
         run: ansible-playbook site.yml
 
+      # Re-apply without ci_runner_cidr, so Terraform removes the runner rule.
       - name: Remove the temporary SSH rule
-        if: always()
-        run: |
-          az network nsg rule delete \
-            --resource-group "${{ steps.tf.outputs.rg }}" \
-            --nsg-name "${{ steps.tf.outputs.nsg }}" \
-            --name gha-runner-temp \
-            --output none || true
+        if: always() && steps.tf.outcome == 'success'
+        run: terraform -chdir=$TF_DIR apply -auto-approve -input=false
 
       - name: Show the blog address on the summary page
         run: echo "### Blog is live at ${{ steps.tf.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
