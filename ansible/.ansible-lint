@@ -4,3 +4,6 @@
 # and the next task sets ownership explicitly.
 warn_list:
   - risky-file-permissions
+
+skip_list:
+  - fqcn[canonical]
