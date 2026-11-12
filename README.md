@@ -1,5 +1,11 @@
 # Ingram Cloud Lab: WordPress on Azure with Terraform, Ansible, and GitHub Actions
 
+**Live site:** this lab hosts my tech blog, where I document what I build and learn about cloud infrastructure.
+
+## Why I built this
+
+I'm an MIS student at Georgia College working toward a career in cloud and solutions engineering. After setting up a LAMP server by hand in a Linux course, I wanted to learn how infrastructure teams build and manage servers with code instead. I built this lab to get hands-on with the tools they use, Terraform, Ansible, Azure, and CI/CD, and to give my blog a real home. Every upgrade I make to the lab becomes a post on the blog.
+
 A two-server lab built entirely from code:
 
 - **Terraform** builds the infrastructure in Azure: a network, a firewall, and two Ubuntu VMs.
