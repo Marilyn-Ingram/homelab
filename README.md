@@ -1,4 +1,4 @@
-# Home Lab: WordPress on Azure with Terraform, Ansible, and GitHub Actions
+# Ingram Cloud Lab: WordPress on Azure with Terraform, Ansible, and GitHub Actions
 
 A two-server lab built entirely from code:
 
