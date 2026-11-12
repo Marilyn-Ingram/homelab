@@ -65,7 +65,7 @@ jobs:
 
   plan:
     name: Terraform plan
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && vars.AZURE_READY == 'true'
     needs: lint
     runs-on: ubuntu-latest
     env:

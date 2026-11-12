@@ -30,6 +30,7 @@ env:
 
 jobs:
   deploy:
+    if: vars.AZURE_READY == 'true'
     name: Build with Terraform, configure with Ansible
     runs-on: ubuntu-latest
     environment: lab
