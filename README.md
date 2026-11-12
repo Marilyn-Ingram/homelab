@@ -270,3 +270,5 @@ Two `Standard_B1s` VMs plus two public IPs cost roughly a few cents per hour tog
 - Add HTTPS with Let's Encrypt.
 - Add monitoring (Azure Monitor agent, or Prometheus + Grafana on a third VM).
 
+
+_Deployed automatically with GitHub Actions: Terraform plan on every pull request, apply + Ansible after approval._
