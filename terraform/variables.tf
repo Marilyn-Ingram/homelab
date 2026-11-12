@@ -48,3 +48,14 @@ variable "subnet_cidr" {
   type        = string
   default     = "10.10.1.0/24"
 }
+
+variable "ci_runner_cidr" {
+  description = "Temporary SSH source for the GitHub Actions runner. Leave empty (the default) so no rule exists."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.ci_runner_cidr == "" || can(cidrhost(var.ci_runner_cidr, 0))
+    error_message = "ci_runner_cidr must be empty or a CIDR like 203.0.113.5/32."
+  }
+}

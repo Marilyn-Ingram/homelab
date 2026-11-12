@@ -72,6 +72,22 @@ resource "azurerm_network_security_group" "lab" {
     source_address_prefix      = "Internet"
     destination_address_prefix = "*"
   }
+
+  # Only exists during a deploy: lets the GitHub runner SSH in, then is removed.
+  dynamic "security_rule" {
+    for_each = var.ci_runner_cidr == "" ? [] : [var.ci_runner_cidr]
+    content {
+      name                       = "allow-ssh-from-ci-runner"
+      priority                   = 150
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = security_rule.value
+      destination_address_prefix = "*"
+    }
+  }
 }
 
 resource "azurerm_subnet_network_security_group_association" "lab" {
