@@ -61,3 +61,9 @@
     msg: >-
       Open http://{{ ansible_host }} and use database {{ db_name }},
       user {{ db_user }}, and database host {{ db_private_ip }}.
+
+- name: Turn on Apache's rewrite module (for clean links)
+  ansible.builtin.command: a2enmod rewrite
+  args:
+    creates: /etc/apache2/mods-enabled/rewrite.load
+  notify: Reload Apache

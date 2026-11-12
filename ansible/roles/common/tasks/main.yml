@@ -22,3 +22,35 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Check whether a swap file already exists
+  ansible.builtin.stat:
+    path: /swapfile
+  register: swapfile
+
+- name: Create a 1 GB swap file
+  ansible.builtin.command: fallocate -l 1G /swapfile
+  args:
+    creates: /swapfile
+
+- name: Lock down the swap file permissions
+  ansible.builtin.file:
+    path: /swapfile
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Format the swap file
+  ansible.builtin.command: mkswap /swapfile
+  when: not swapfile.stat.exists
+  changed_when: true
+
+- name: Turn on swap now
+  ansible.builtin.command: swapon /swapfile
+  when: not swapfile.stat.exists
+  changed_when: true
+
+- name: Turn on swap at every boot
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "/swapfile none swap sw 0 0"
