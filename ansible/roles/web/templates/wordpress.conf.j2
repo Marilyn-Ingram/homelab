@@ -1,0 +1,13 @@
+# Managed by Ansible. Changes here are overwritten on the next run.
+<VirtualHost *:80>
+    ServerName {{ ansible_host }}
+    DocumentRoot /var/www/wordpress
+
+    <Directory /var/www/wordpress>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/wordpress_error.log
+    CustomLog ${APACHE_LOG_DIR}/wordpress_access.log combined
+</VirtualHost>

@@ -1,0 +1,106 @@
+name: CI
+
+# Runs on every pull request to main, and on pushes to any other branch.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+  id-token: write   # lets GitHub sign in to Azure with OIDC (no passwords stored)
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  TF_DIR: terraform
+
+jobs:
+  lint:
+    name: Lint and security scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform format check
+        run: terraform -chdir=$TF_DIR fmt -check -recursive
+
+      - name: Terraform validate
+        run: |
+          terraform -chdir=$TF_DIR init -backend=false -input=false
+          terraform -chdir=$TF_DIR validate
+
+      - name: Install TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: TFLint
+        working-directory: terraform
+        run: |
+          tflint --init
+          tflint
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scanners
+        run: pip install checkov ansible ansible-lint
+
+      - name: Checkov security scan (reports findings, does not fail the build)
+        run: checkov -d $TF_DIR --soft-fail --compact
+
+      - name: Ansible lint
+        working-directory: ansible
+        run: ansible-lint site.yml
+
+  plan:
+    name: Terraform plan
+    if: github.event_name == 'pull_request'
+    needs: lint
+    runs-on: ubuntu-latest
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+      TF_VAR_admin_cidr: ${{ secrets.ADMIN_CIDR }}
+      TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init (remote state)
+        run: >
+          terraform -chdir=$TF_DIR init -input=false
+          -backend-config="resource_group_name=${{ secrets.TFSTATE_RG }}"
+          -backend-config="storage_account_name=${{ secrets.TFSTATE_SA }}"
+          -backend-config="container_name=tfstate"
+          -backend-config="key=homelab.tfstate"
+
+      - name: Terraform plan
+        run: terraform -chdir=$TF_DIR plan -input=false -no-color | tee plan.txt
+
+      - name: Show the plan on the run's summary page
+        if: always()
+        run: |
+          {
+            echo "## Terraform plan"
+            echo '```'
+            tail -n 80 plan.txt || echo "No plan output."
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

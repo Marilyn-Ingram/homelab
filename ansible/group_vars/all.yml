@@ -1,0 +1,7 @@
+---
+db_name: wordpress
+db_user: wpuser
+
+# Read from the WP_DB_PASSWORD environment variable (a GitHub secret in CI).
+# The fallback is only for quick local testing. Set your own before using it for real.
+db_password: "{{ lookup('ansible.builtin.env', 'WP_DB_PASSWORD') | default('ChangeMe-Lab-123!', true) }}"

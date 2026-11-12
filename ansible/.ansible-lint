@@ -1,0 +1,6 @@
+---
+# Report these as warnings instead of failing CI.
+# risky-file-permissions: unarchive extracts WordPress with its own file modes,
+# and the next task sets ownership explicitly.
+warn_list:
+  - risky-file-permissions

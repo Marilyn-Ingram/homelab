@@ -1,0 +1,56 @@
+---
+- name: Install Apache and PHP
+  ansible.builtin.apt:
+    name:
+      - apache2
+      - php
+      - php-mysql
+      - libapache2-mod-php
+    state: present
+
+- name: Download and unpack WordPress
+  ansible.builtin.unarchive:
+    src: https://wordpress.org/latest.tar.gz
+    dest: /var/www/
+    remote_src: true
+    creates: /var/www/wordpress
+
+- name: Give Apache ownership of the WordPress files
+  ansible.builtin.file:
+    path: /var/www/wordpress
+    owner: www-data
+    group: www-data
+    recurse: true
+
+- name: Add the Apache site for WordPress
+  ansible.builtin.template:
+    src: wordpress.conf.j2
+    dest: /etc/apache2/sites-available/wordpress.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload Apache
+
+- name: Turn on the WordPress site
+  ansible.builtin.command: a2ensite wordpress.conf
+  args:
+    creates: /etc/apache2/sites-enabled/wordpress.conf
+  notify: Reload Apache
+
+- name: Turn off Apache's default page
+  ansible.builtin.command: a2dissite 000-default.conf
+  args:
+    removes: /etc/apache2/sites-enabled/000-default.conf
+  notify: Reload Apache
+
+- name: Make sure Apache is running and starts on boot
+  ansible.builtin.service:
+    name: apache2
+    state: started
+    enabled: true
+
+- name: Show what to enter on the WordPress setup page
+  ansible.builtin.debug:
+    msg: >-
+      Open http://{{ ansible_host }} and use database {{ db_name }},
+      user {{ db_user }}, and database host {{ db_private_ip }}.

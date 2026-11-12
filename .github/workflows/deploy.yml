@@ -1,0 +1,134 @@
+name: Deploy
+
+# Runs when code is merged to main, or when you click "Run workflow".
+# The "lab" environment can require your approval before it starts (README, Part 2).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: homelab-infra
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  TF_DIR: terraform
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: "true"
+  TF_VAR_admin_cidr: ${{ secrets.ADMIN_CIDR }}
+  TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+
+jobs:
+  deploy:
+    name: Build with Terraform, configure with Ansible
+    runs-on: ubuntu-latest
+    environment: lab
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Sign in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init (remote state)
+        run: >
+          terraform -chdir=$TF_DIR init -input=false
+          -backend-config="resource_group_name=${{ secrets.TFSTATE_RG }}"
+          -backend-config="storage_account_name=${{ secrets.TFSTATE_SA }}"
+          -backend-config="container_name=tfstate"
+          -backend-config="key=homelab.tfstate"
+
+      - name: Terraform apply
+        run: terraform -chdir=$TF_DIR apply -auto-approve -input=false
+
+      - name: Read Terraform outputs
+        id: tf
+        run: |
+          echo "rg=$(terraform -chdir=$TF_DIR output -raw resource_group_name)" >> "$GITHUB_OUTPUT"
+          echo "nsg=$(terraform -chdir=$TF_DIR output -raw nsg_name)" >> "$GITHUB_OUTPUT"
+          echo "url=$(terraform -chdir=$TF_DIR output -raw blog_url)" >> "$GITHUB_OUTPUT"
+
+      # The firewall only allows SSH from your home IP. GitHub's runner has a
+      # different IP every time, so we open SSH for this runner only, then
+      # remove the rule at the end (even if a step fails).
+      - name: Temporarily allow this runner to SSH in
+        run: |
+          RUNNER_IP=$(curl -fsS https://api.ipify.org)
+          echo "Runner IP: $RUNNER_IP"
+          az network nsg rule create \
+            --resource-group "${{ steps.tf.outputs.rg }}" \
+            --nsg-name "${{ steps.tf.outputs.nsg }}" \
+            --name gha-runner-temp \
+            --priority 150 \
+            --direction Inbound \
+            --access Allow \
+            --protocol Tcp \
+            --source-address-prefixes "$RUNNER_IP/32" \
+            --destination-port-ranges 22 \
+            --output none
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Add the SSH private key
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/homelab
+          chmod 600 ~/.ssh/homelab
+
+      - name: Wait until both servers answer
+        working-directory: ansible
+        run: |
+          for attempt in $(seq 1 20); do
+            if ansible all -m ping; then
+              exit 0
+            fi
+            echo "Servers not ready yet (attempt $attempt). Waiting 15 seconds..."
+            sleep 15
+          done
+          echo "Servers never became reachable."
+          exit 1
+
+      - name: Run the Ansible playbook
+        working-directory: ansible
+        env:
+          WP_DB_PASSWORD: ${{ secrets.WP_DB_PASSWORD }}
+        run: ansible-playbook site.yml
+
+      - name: Remove the temporary SSH rule
+        if: always()
+        run: |
+          az network nsg rule delete \
+            --resource-group "${{ steps.tf.outputs.rg }}" \
+            --nsg-name "${{ steps.tf.outputs.nsg }}" \
+            --name gha-runner-temp \
+            --output none || true
+
+      - name: Show the blog address on the summary page
+        run: echo "### Blog is live at ${{ steps.tf.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

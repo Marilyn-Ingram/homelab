@@ -1,0 +1,9 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is in .gitignore, so it never gets committed.
+
+admin_cidr     = "YOUR.HOME.IP.ADDRESS/32"
+ssh_public_key = "paste the contents of ~/.ssh/homelab.pub here"
+
+# Optional overrides:
+# location = "eastus2"
+# vm_size  = "Standard_B2s"

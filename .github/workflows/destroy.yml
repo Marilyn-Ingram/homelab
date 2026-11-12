@@ -1,0 +1,56 @@
+name: Destroy
+
+# Manual only. Type "destroy" to confirm. Deletes the lab VMs and network
+# (not the state storage account) so the lab stops using your credit.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to delete the lab'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: homelab-infra
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  destroy:
+    name: Terraform destroy
+    if: github.event.inputs.confirm == 'destroy'
+    runs-on: ubuntu-latest
+    environment: lab
+    env:
+      TF_DIR: terraform
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+      TF_VAR_admin_cidr: ${{ secrets.ADMIN_CIDR }}
+      TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init (remote state)
+        run: >
+          terraform -chdir=$TF_DIR init -input=false
+          -backend-config="resource_group_name=${{ secrets.TFSTATE_RG }}"
+          -backend-config="storage_account_name=${{ secrets.TFSTATE_SA }}"
+          -backend-config="container_name=tfstate"
+          -backend-config="key=homelab.tfstate"
+
+      - name: Terraform destroy
+        run: terraform -chdir=$TF_DIR destroy -auto-approve -input=false
