@@ -270,8 +270,3 @@ Two `Standard_B1s` VMs plus two public IPs cost roughly a few cents per hour tog
 - Add HTTPS with Let's Encrypt.
 - Add monitoring (Azure Monitor agent, or Prometheus + Grafana on a third VM).
 
-## Talking about this project
-
-Describe only what you've actually built and run. For example:
-
-> "I built a home lab where Terraform creates a network, firewall, and two Ubuntu VMs in Azure, and Ansible configures a web server and a separate MySQL server for WordPress. It runs through GitHub Actions: pull requests get linted, security-scanned with Checkov, and planned, and merges to main deploy after I approve them. GitHub signs in to Azure with OIDC, so no passwords are stored, and the state file lives in Azure Storage."
