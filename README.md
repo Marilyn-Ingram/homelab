@@ -260,15 +260,3 @@ Two `Standard_B1s` VMs plus two public IPs cost roughly a few cents per hour tog
 | WordPress says "Error establishing a database connection" | Use the `db_private_ip` as the database host, and the same password you exported as `WP_DB_PASSWORD`. |
 | `Error acquiring the state lock` | Another run is using the state. Wait for it to finish. Only if you're sure nothing is running: `terraform force-unlock <LOCK_ID>`. |
 | Checkov shows many findings | Normal for a lab. It doesn't fail the build. Read a few and decide what you'd fix in production. |
-
-## Ideas to extend it
-
-- Store `WP_DB_PASSWORD` with **Ansible Vault** instead of an environment variable.
-- Move the database off the public internet: remove its public IP and reach it through the web server (a "jump host").
-- Add **Azure Bastion** or a VPN instead of opening SSH at all.
-- Turn the VM block into a reusable **Terraform module**.
-- Add HTTPS with Let's Encrypt.
-- Add monitoring (Azure Monitor agent, or Prometheus + Grafana on a third VM).
-
-
-_Deployed automatically with GitHub Actions: Terraform plan on every pull request, apply + Ansible after approval._
